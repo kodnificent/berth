@@ -1,0 +1,13 @@
+name = "vite"
+about = "a Vite dev server"
+applies = [{ any = [
+  { file = "vite.config.*" },
+  { file = "package.json", json_objects = ["dependencies", "devDependencies"], json_key = "vite" },
+] }]
+
+[[ports]]
+name = "vite"
+env = "VITE_PORT"
+default = 5173
+confirm = [{ file = "vite.config.*", matches = 'VITE_PORT' }]
+reason = "vite.config doesn't read VITE_PORT, so this port wouldn't reach the dev server. Read it in server.port, then uncomment this."

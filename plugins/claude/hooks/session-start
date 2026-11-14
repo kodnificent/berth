@@ -1,0 +1,109 @@
+#!/bin/sh
+# A session start must never wait on berth or fail because of it, so this only reads,
+# gives berth a deadline and exits 0 whatever happens.
+
+json='
+function emit(val,   p, d) {
+	p = ""
+	for (d = 1; d <= depth; d++) p = p (d > 1 ? "." : "") key[d]
+	v[p] = val
+}
+function unescape(s,   out) {
+	out = ""
+	while (match(s, /\\./)) {
+		out = out substr(s, 1, RSTART - 1) substr(s, RSTART + 1, 1)
+		s = substr(s, RSTART + 2)
+	}
+	return out s
+}
+function add(line) { ctx = ctx (ctx == "" ? "" : "\\n") line }
+{ buf = buf $0 "\n" }
+END {
+	n = length(buf); i = 1; depth = 0
+	while (i <= n) {
+		c = substr(buf, i, 1)
+		if (c == "{" || c == "[") {
+			depth++; type[depth] = c; key[depth] = (c == "[" ? 0 : ""); wantkey[depth] = (c == "{"); i++
+		} else if (c == "}" || c == "]") {
+			depth--; i++
+		} else if (c == ",") {
+			if (type[depth] == "[") key[depth]++; else wantkey[depth] = 1
+			i++
+		} else if (c == "\"") {
+			j = i + 1
+			while (j <= n) {
+				ch = substr(buf, j, 1)
+				if (ch == "\\") j += 2
+				else if (ch == "\"") break
+				else j++
+			}
+			s = substr(buf, i + 1, j - i - 1); i = j + 1
+			if (type[depth] == "{" && wantkey[depth]) { key[depth] = s; wantkey[depth] = 0 } else emit(s)
+		} else if (index(": \t\r\n", c)) {
+			i++
+		} else {
+			j = i
+			while (j <= n && !index(",}] \t\r\n", substr(buf, j, 1))) j++
+			emit(substr(buf, i, j - i)); i = j
+		}
+	}
+	if (mode == "cwd") { printf "%s", unescape(v["cwd"]); exit }
+	if ("error.code" in v) {
+		code = v["error.code"]
+		if (code == "no_berth") add("This worktree has no berth yet. Run `berth add` before you start the app or run its tests here; reading and editing code need none.")
+		else if (code != "main_worktree" && code != "worktree_not_found") add("berth status failed with " code ": " v["error.message"])
+	} else if ("id" in v) {
+		add("This worktree has its own berth: its own ports, names, files and data. From berth status --json:")
+		if (v["url"] != "") add("- URL: " v["url"])
+		if (v["host"] != "") add("- host: " v["host"])
+		if (v["compose_project"] != "") add("- compose project: " v["compose_project"])
+		for (k = 0; ("ports." k ".name") in v; k++) {
+			p = "ports." k "."
+			line = "- port " v[p "name"] ": " (((p "host_port") in v) ? v[p "host_port"] : v[p "policy"])
+			target = v[p "service"] (((p "container_port") in v) ? ":" v[p "container_port"] : "")
+			if (target != "" && target != v[p "name"]) line = line " (" target ")"
+			add(line)
+		}
+		for (k = 0; ("state." k ".name") in v; k++) {
+			p = "state." k "."
+			line = "- " v[p "kind"] " " v[p "name"] ": " v[p "status"]
+			if ((p "progress") in v) line = line " " int(v[p "progress"] * 100) "%"
+			if ((p "error") in v) line = line ", " v[p "error"]
+			add(line)
+		}
+		if ("post_add.status" in v) add("- post-add: " v["post_add.status"])
+		for (k = 0; ("next." k) in v; k++) add("- next: " v["next." k])
+		add("Use this berth URL and these ports, never localhost or the ports main uses. Run berth status --json again for env keys, files and clone progress.")
+	}
+	printf "%s", ctx
+}'
+
+emit() {
+	[ -n "$1" ] && printf '{"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "%s"}}\n' "$1"
+	exit 0
+}
+
+dir=$(awk -v mode=cwd "$json" 2>/dev/null)
+[ -n "$dir" ] && [ -d "$dir" ] || dir=$PWD
+
+command -v berth >/dev/null 2>&1 || emit "berth is not on PATH, so this session starts without the berth URL and ports; install berth and run berth status --json."
+
+tmp=$(mktemp -d 2>/dev/null) || exit 0
+trap 'rm -rf "$tmp"' EXIT
+
+(cd "$dir" && exec berth status --json) >"$tmp/status" 2>/dev/null </dev/null &
+pid=$!
+# Fractional sleep is not POSIX but every sh this runs under has it; the fallback
+# only costs the budget, never the session. The rest of the budget, 1 s or 2 s on Windows
+# where starting each process is slow, is this script's own.
+(sleep 0.7 2>/dev/null || sleep 1; : >"$tmp/late"; kill "$pid") >/dev/null 2>&1 </dev/null &
+dog=$!
+wait "$pid"
+code=$?
+{ kill "$dog"; wait "$dog"; } 2>/dev/null
+
+if [ -e "$tmp/late" ] && [ "$code" -gt 128 ]; then
+	emit "berth is busy and did not answer within 1s, likely another berth command holding its lock; run berth status --json before you start the app or use a URL."
+fi
+
+emit "$(awk -v mode=status "$json" "$tmp/status" 2>/dev/null)"

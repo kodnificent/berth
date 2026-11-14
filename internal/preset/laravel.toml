@@ -1,0 +1,58 @@
+name = "laravel"
+about = "a Laravel application"
+applies = [
+  { file = "artisan" },
+  { file = "composer.json", matches = '"laravel/framework"' },
+]
+
+[[env]]
+key = "APP_URL"
+value = "{url}"
+confirm = [{ file = "config/*.php", matches = '''env\(\s*['"]APP_URL['"]''' }]
+reason = "No file in config/ reads APP_URL, so a berth's value wouldn't reach the app."
+
+[[env]]
+key = "SESSION_DOMAIN"
+value = "null"
+reason = "A session cookie for a shared domain logs a browser into every berth at once, so berth leaves it host-only. Uncomment this if main's .env names a domain."
+
+[[env]]
+key = "REDIS_PREFIX"
+value = "{name}_database_"
+confirm = [{ file = "config/*.php", matches = '''env\(\s*['"]REDIS_PREFIX['"]''' }]
+reason = "No file in config/ reads REDIS_PREFIX, so berths on one Redis server would share keys however this is set."
+
+[[env]]
+key = "CACHE_PREFIX"
+value = "{name}_cache_"
+confirm = [{ file = "config/*.php", matches = '''env\(\s*['"]CACHE_PREFIX['"]''' }]
+reason = "No file in config/ reads CACHE_PREFIX, so berths on one cache store would share keys however this is set."
+
+[[ports]]
+name = "serve"
+env = "SERVER_PORT"
+default = 8000
+confirm = [{ any = [
+  { file = "composer.json", matches = 'artisan serve' },
+  { env = "SERVER_PORT" },
+] }]
+reason = "Nothing here shows php artisan serve in use. Uncomment this if you run it, so each berth serves on its own port."
+
+[mysql]
+from = "env:DB_*"
+default = "skip"
+strategy = "dump"
+database_env = "DB_DATABASE"
+confirm = [
+  { env = "DB_CONNECTION", values = ["mysql", "mariadb"] },
+  { env = "DB_HOST", values = ["127.0.0.1", "localhost", "::1"] },
+  { env = "DB_PORT", default = "3306", not_published = true },
+  { env = "DB_USERNAME" },
+]
+reason = "Main's .env doesn't point at a MySQL server on this machine: DB_CONNECTION, DB_HOST, DB_PORT or DB_USERNAME say otherwise. A database in compose is cloned with its volume."
+prefix = "env:DB_DATABASE_PREFIX"
+prefix_confirm = [
+  { file = "config/*.php", matches = '''env\(\s*['"]DB_DATABASE_PREFIX['"]''' },
+  { env = "DB_DATABASE_PREFIX" },
+]
+prefix_reason = "Nothing here confirms DB_DATABASE_PREFIX: no file in config/ reads it, or main's .env doesn't set it. Uncomment this only if the app derives its database names from that key, and key the databases below by the part after the prefix."

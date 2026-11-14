@@ -1,0 +1,83 @@
+#!/bin/sh
+# Installs berth on macOS and Linux:
+#
+#   curl -fsSL https://useberth.dev/install | sh
+#
+# BERTH_VERSION      a release tag such as v0.1.0; the latest release when unset
+# BERTH_INSTALL_DIR  where berth goes; $HOME/.local/bin when unset
+set -eu
+
+repo="kodnificent/berth"
+
+fail() {
+	echo "berth install: $1" >&2
+	exit 1
+}
+
+fetch() {
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL -o "$2" "$1"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q -O "$2" "$1"
+	else
+		fail "needs curl or wget to download berth"
+	fi
+}
+
+sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | cut -d' ' -f1
+	elif command -v shasum >/dev/null 2>&1; then
+		shasum -a 256 "$1" | cut -d' ' -f1
+	else
+		fail "needs sha256sum or shasum to check the download"
+	fi
+}
+
+# Everything runs from main, called on the last line, so a download cut short runs nothing.
+main() {
+	case "$(uname -s)" in
+		Darwin) os=darwin ;;
+		Linux) os=linux ;;
+		*) fail "this script installs berth on macOS and Linux; on Windows run: irm https://useberth.dev/install.ps1 | iex" ;;
+	esac
+	case "$(uname -m)" in
+		x86_64 | amd64) arch=amd64 ;;
+		arm64 | aarch64) arch=arm64 ;;
+		*) fail "berth has no build for $(uname -m); build it with: go install github.com/$repo/cmd/berth@latest" ;;
+	esac
+
+	archive="berth_${os}_${arch}.tar.gz"
+	base="https://github.com/$repo/releases/latest/download"
+	if [ -n "${BERTH_VERSION:-}" ]; then
+		base="https://github.com/$repo/releases/download/$BERTH_VERSION"
+	fi
+	base="${BERTH_DOWNLOAD_BASE:-$base}"
+	dir="${BERTH_INSTALL_DIR:-$HOME/.local/bin}"
+
+	tmp="$(mktemp -d)"
+	trap 'rm -rf "$tmp"' EXIT
+
+	fetch "$base/$archive" "$tmp/$archive" || fail "could not download $base/$archive"
+	fetch "$base/checksums.txt" "$tmp/checksums.txt" || fail "could not download $base/checksums.txt"
+
+	want="$(awk -v f="$archive" '$2 == f { print $1 }' "$tmp/checksums.txt")"
+	[ -n "$want" ] || fail "checksums.txt does not list $archive"
+	got="$(sha256 "$tmp/$archive")"
+	[ "$got" = "$want" ] || fail "$archive does not match its checksum (got $got, want $want), so nothing was installed"
+
+	tar -xzf "$tmp/$archive" -C "$tmp" berth
+	mkdir -p "$dir"
+	# Moved into place in one step, so a berth already running is never half replaced.
+	cp "$tmp/berth" "$dir/.berth.new"
+	chmod 755 "$dir/.berth.new"
+	mv -f "$dir/.berth.new" "$dir/berth"
+
+	echo "Installed $("$dir/berth" --version) at $dir/berth"
+	case ":$PATH:" in
+		*":$dir:"*) ;;
+		*) echo "$dir is not on your PATH. Add it with: export PATH=\"\$PATH:$dir\"" ;;
+	esac
+}
+
+main

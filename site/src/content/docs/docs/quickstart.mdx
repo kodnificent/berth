@@ -1,0 +1,138 @@
+---
+title: Quickstart
+description: Give every git worktree its own environment in five minutes.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+You'll install berth, set it up in one repo, and run two copies of your app side by side.
+
+:::note[Pre-release]
+Berth is pre-release, so expect changes before v1.0.
+:::
+
+## Install
+
+<Tabs syncKey="os">
+  <TabItem label="macOS and Linux">
+    ```sh
+    curl -fsSL https://useberth.dev/install | sh
+    ```
+
+    It puts `berth` in `~/.local/bin` and never asks for `sudo`. If your shell can't find `berth` afterwards, add that folder to your `PATH`, as the script prints.
+  </TabItem>
+  <TabItem label="Windows">
+    ```powershell
+    irm https://useberth.dev/install.ps1 | iex
+    ```
+
+    Run it in PowerShell, as yourself, not as an administrator. It puts `berth.exe` in `%LOCALAPPDATA%\Programs\berth` and adds that folder to your user `PATH`, so open a new terminal afterwards.
+  </TabItem>
+  <TabItem label="Go">
+    ```sh
+    go install github.com/kodnificent/berth/cmd/berth@latest
+    ```
+
+    It puts `berth` in `$(go env GOPATH)/bin`, usually `~/go/bin`. If your shell can't find `berth`, add it with `export PATH="$PATH:$(go env GOPATH)/bin"`.
+  </TabItem>
+</Tabs>
+
+Check it worked with `berth --version`.
+
+Both scripts download the build for your machine from the [latest release](https://github.com/kodnificent/berth/releases/latest) and check it against the release's checksums before installing anything. To install a particular version, set `BERTH_VERSION` to its tag, such as `v0.1.0`; `BERTH_INSTALL_DIR` picks another folder. The builds are not code-signed, so a file you download from the releases page in a browser is held by Gatekeeper on macOS and SmartScreen on Windows, which the scripts' downloads are not.
+
+## Set up your repo
+
+In your main checkout, run:
+
+```sh
+berth init
+```
+
+`berth init` looks at your main checkout and writes a `berth.toml` with what it finds for certain: each published compose port, each named volume, and dependency directories next to a lockfile. Anything that depends on your intent, such as which `.env` keys hold your app's URL, is left as a commented-out suggestion with the reason. It never overwrites a config, and when it's done it shows what `berth doctor` still finds. Read the file, uncomment what you want, and commit it so new worktrees get it. `berth init --dry-run` prints the file without writing it.
+
+If you'd rather commit nothing, run `berth init --private`. It writes the config to `berth.local.toml`, which berth keeps out of git. Run `berth config edit` from any worktree to change it later.
+
+## Make a worktree and its berth
+
+```sh
+git worktree add .worktrees/fix-checkout
+cd .worktrees/fix-checkout
+berth add
+```
+
+A worktree gets a berth when it needs to run, not when it is created: many worktrees, agent ones especially, only ever edit code, and each berth holds its own copy of your data. Run `berth add` when you, or an agent, are about to start the app or its tests. In a worktree with no berth, `berth status` says so and gives the command.
+
+```text
+Added berth 9f2c4e1ab07d3355 for /code/shop/.worktrees/fix-checkout
+name                         fix-checkout
+url                          http://fix-checkout.localhost:20000
+port app                     20000 (assign)
+port vite                    20001 (assign)
+database shop__fix_checkout  cloning
+next                         database shop is still cloning; run berth status --wait before starting the app
+```
+
+Ports, names and files are ready in about a second, and `add` ends by saying where the berth is and what to do next. A large database copies in the background, and `berth status` shows how far along it is. In a terminal each state gets a tick and a colour.
+
+## Run your app
+
+Use the same commands you use in main. They read the files berth wrote, so they act on this worktree's environment only.
+
+<Tabs syncKey="stack">
+  <TabItem label="Node">
+    ```sh
+    npm run dev
+    ```
+  </TabItem>
+  <TabItem label="Rails">
+    ```sh
+    bin/rails server
+    ```
+  </TabItem>
+  <TabItem label="Django">
+    ```sh
+    python manage.py runserver
+    ```
+  </TabItem>
+  <TabItem label="Compose">
+    ```sh
+    docker compose up
+    ```
+  </TabItem>
+</Tabs>
+
+Open the URL berth printed. Main keeps running at its usual address, and logging in on one doesn't log you out of the other.
+
+## See what berth set up
+
+```sh
+berth status
+```
+
+`berth status` lists the worktree's ports, URL, databases, the files berth wrote and any copy still in progress, and ends with what to do next: wait with `berth status --wait` while a copy is still running, then use the worktree's own URL. Add `--json` for scripts and agents; the hints are its `next` list.
+
+## Optional: a berth for every worktree
+
+If every worktree in a repo runs the app, have git make the berth for you. In your main checkout, run:
+
+```sh
+berth hook install
+```
+
+It adds a git `post-checkout` hook, so every `git worktree add` runs `berth add`, whichever tool runs it: your terminal, Claude Code, Cursor, Codex or Conductor. `berth hook uninstall` takes it out again.
+
+## Clean up
+
+```sh
+git worktree remove .worktrees/fix-checkout
+berth prune
+```
+
+Berth frees a removed worktree's ports on its own. It never deletes data on its own: `berth prune` deletes the databases, volumes and copied files left behind, only what berth created, and prints what it removed. `berth prune --dry-run` lists them without deleting.
+
+## Next
+
+- Set berth up for [your stack](/docs/stacks/dev-servers/).
+- Run several [agents in parallel](/docs/guides/agents/).
+- See every option in the [configuration reference](/docs/reference/configuration/).

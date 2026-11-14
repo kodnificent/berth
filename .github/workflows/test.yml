@@ -1,0 +1,199 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+      # The root-only tests skip unless root runs them. They are built as this user, so
+      # root never writes the build cache, then run as root with a sudo user set, as
+      # sudo berth proxy would be. BERTH_TEST_ROOT=1 turns a skip into a failure, and the
+      # count fails the step if the pattern stops matching them.
+      - name: Root-only tests, as root
+        run: |
+          go test -c -o "$RUNNER_TEMP/privilege.test" ./internal/privilege/
+          go test -c -o "$RUNNER_TEMP/cli.test" ./internal/cli/
+          cd "$RUNNER_TEMP"
+          for t in privilege cli; do
+            sudo env BERTH_TEST_ROOT=1 SUDO_UID="$(id -u)" SUDO_GID="$(id -g)" "./$t.test" -test.run '^TestAsRoot' -test.count=1 -test.v | tee -a root.log
+          done
+          test "$(grep -c -- '^--- PASS: TestAsRoot' root.log)" -ge 6
+
+  e2e:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install the Docker Compose the e2e tests are written against
+        env:
+          COMPOSE_VERSION: v5.5.1
+        run: |
+          base="https://github.com/docker/compose/releases/download/$COMPOSE_VERSION/docker-compose-linux-x86_64"
+          curl -fsSL -o docker-compose "$base"
+          echo "$(curl -fsSL "$base.sha256" | cut -d' ' -f1)  docker-compose" | sha256sum -c -
+          sudo install -D -m 0755 docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
+          rm docker-compose
+      - run: docker version && docker compose version
+      # BERTH_E2E_SUDO lets the e2e tests that start the proxy with sudo run; the runner's
+      # sudo needs no password.
+      - run: go test -tags e2e -timeout 80m -v ./e2e/...
+        env:
+          BERTH_E2E_SUDO: "1"
+
+  windows:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-2025
+    timeout-minutes: 200
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Keep Defender out of the directories the tests write to
+        run: Add-MpPreference -ExclusionPath $env:TEMP, $env:RUNNER_TEMP, $env:GITHUB_WORKSPACE
+      # The runner's disks are NTFS and block cloning needs ReFS, the filesystem of a Dev
+      # Drive. diskpart makes the VHD because the runner has no Hyper-V module, and the VHD
+      # is expandable because a Dev Drive must be at least 50 GB.
+      - name: Make a Dev Drive backed by a VHD
+        run: |
+          $vhd = Join-Path $env:RUNNER_TEMP 'devdrive.vhdx'
+          $script = Join-Path $env:RUNNER_TEMP 'devdrive.txt'
+          @"
+          create vdisk file="$vhd" maximum=65536 type=expandable
+          select vdisk file="$vhd"
+          attach vdisk
+          convert gpt
+          create partition primary
+          assign letter=R
+          "@ | Set-Content $script
+          diskpart /s $script
+          if ($LASTEXITCODE) { throw "diskpart failed" }
+          Format-Volume -DriveLetter R -DevDrive -Confirm:$false -Force
+          if (-not $?) { throw "Format-Volume -DevDrive failed" }
+          $query = (fsutil devdrv query R:) -join "`n"
+          $query
+          if ($query -notmatch '(?i)this is a (trusted )?developer volume') { throw "R: is not a Dev Drive" }
+          Add-MpPreference -ExclusionPath 'R:\'
+          New-Item -ItemType Directory 'R:\work' | Out-Null
+          Add-Content $env:GITHUB_ENV 'BERTH_TEST_DEV_DRIVE=R:\work'
+      - run: go vet ./...
+      - run: go test ./...
+      # The runner's Docker CLI has no buildx, so compose would fall back to the legacy
+      # builder, which can't build what the e2e fixtures build.
+      - name: Install the Docker Compose the e2e tests are written against, and buildx
+        env:
+          COMPOSE_VERSION: v5.5.1
+          COMPOSE_SHA256: a3c0c73033eaede90210345d0cc2233edf4fab8fe0282a91dad8fd8436809d2f
+          BUILDX_VERSION: v0.38.2
+          BUILDX_SHA256: 9a6aca9c84adda0391d1d98d8b74b49359cad1bcdadd196a0a5d7d5dc4cf15e0
+        run: |
+          $dir = Join-Path $env:USERPROFILE '.docker\cli-plugins'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $exe = Join-Path $dir 'docker-compose.exe'
+          Invoke-WebRequest -UseBasicParsing -OutFile $exe "https://github.com/docker/compose/releases/download/$env:COMPOSE_VERSION/docker-compose-windows-x86_64.exe"
+          if ((Get-FileHash -Algorithm SHA256 $exe).Hash -ne $env:COMPOSE_SHA256) { throw 'docker-compose checksum mismatch' }
+          $exe = Join-Path $dir 'docker-buildx.exe'
+          Invoke-WebRequest -UseBasicParsing -OutFile $exe "https://github.com/docker/buildx/releases/download/$env:BUILDX_VERSION/buildx-$env:BUILDX_VERSION.windows-amd64.exe"
+          if ((Get-FileHash -Algorithm SHA256 $exe).Hash -ne $env:BUILDX_SHA256) { throw 'docker-buildx checksum mismatch' }
+      - name: Install the sqlite3 CLI
+        env:
+          SQLITE_ZIP: 2026/sqlite-tools-win-x64-3540100.zip
+          SQLITE_SHA256: fb20997ade5583a5fbf1e36db7bc3c82c9416b3f314f16961e1572aa4e49487d
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'sqlite.zip'
+          Invoke-WebRequest -UseBasicParsing -OutFile $zip "https://www.sqlite.org/$env:SQLITE_ZIP"
+          if ((Get-FileHash -Algorithm SHA256 $zip).Hash -ne $env:SQLITE_SHA256) { throw 'sqlite checksum mismatch' }
+          $dir = Join-Path $env:RUNNER_TEMP 'sqlite'
+          Expand-Archive $zip $dir
+          Add-Content $env:GITHUB_PATH $dir
+      - name: Unpack a git with no sh for the no-sh tests
+        env:
+          MINGIT_URL: https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/MinGit-2.56.0.4-64-bit.zip
+          MINGIT_SHA256: e3bf78351fe777fba47ddee5950082f8a98bb0f02604fdc7ba3ee2cb68ffa877
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'mingit.zip'
+          Invoke-WebRequest -UseBasicParsing -OutFile $zip $env:MINGIT_URL
+          if ((Get-FileHash -Algorithm SHA256 $zip).Hash -ne $env:MINGIT_SHA256) { throw 'MinGit checksum mismatch' }
+          $dir = Join-Path $env:RUNNER_TEMP 'mingit'
+          Expand-Archive $zip $dir
+          Get-ChildItem -Recurse $dir -Include sh.exe, bash.exe | Remove-Item
+          Add-Content $env:GITHUB_ENV "BERTH_TEST_GIT_WITHOUT_SH=$dir"
+      - uses: Vampire/setup-wsl@v6
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: 2
+      - name: Install Docker Engine in WSL
+        shell: wsl-bash {0}
+        run: curl -fsSL https://get.docker.com | sh
+      # The engine stops with the WSL session that started it, so the tests run from
+      # this one step, on the Windows side through interop, with this step's environment.
+      # The client reaches the engine at the WSL VM's own address: through WSL's
+      # localhost forwarding, docker run and docker exec return none of a container's
+      # output. Ports containers publish are reached at 127.0.0.1 as on any machine.
+      - name: Write the Windows side of the e2e run
+        run: |
+          $lines = @('param($DockerHost)')
+          $lines += Get-ChildItem env: | ForEach-Object { "[Environment]::SetEnvironmentVariable('{0}', '{1}')" -f $_.Name, ($_.Value -replace "'", "''") }
+          $lines += '$env:DOCKER_HOST = $DockerHost'
+          $lines += "Set-Location '$env:GITHUB_WORKSPACE'"
+          $tmp = Join-Path $env:RUNNER_TEMP 'e2e'
+          New-Item -ItemType Directory -Force $tmp | Out-Null
+          $lines += "`$env:TMP = '$tmp'; `$env:TEMP = '$tmp'"
+          $lines += 'docker version; if ($LASTEXITCODE) { exit $LASTEXITCODE }'
+          $lines += 'docker compose version; if ($LASTEXITCODE) { exit $LASTEXITCODE }'
+          $lines += 'docker buildx version; if ($LASTEXITCODE) { exit $LASTEXITCODE }'
+          $lines += 'go test -tags e2e -timeout 170m -v ./e2e/...'
+          $lines += 'exit $LASTEXITCODE'
+          $lines | Set-Content 'C:\berth-e2e.ps1'
+      - name: e2e against Docker Engine in WSL
+        shell: wsl-bash {0}
+        run: |
+          systemctl stop docker.socket docker.service 2>/dev/null || pkill dockerd
+          while pgrep -x dockerd >/dev/null; do sleep 1; done
+          rm -f /var/run/docker.pid
+          nohup dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &
+          for i in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+          docker info --format 'engine {{.OSType}}' || { tail -50 /tmp/dockerd.log; exit 1; }
+          "/mnt/c/Program Files/PowerShell/7/pwsh.exe" -NoProfile -File 'C:\berth-e2e.ps1' -DockerHost "tcp://$(hostname -I | cut -d' ' -f1):2375"
+
+  btrfs:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Mount a btrfs loop device
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y btrfs-progs
+          truncate -s 2G "$RUNNER_TEMP/btrfs.img"
+          mkfs.btrfs -q "$RUNNER_TEMP/btrfs.img"
+          sudo mkdir -p /mnt/btrfs
+          sudo mount -o loop "$RUNNER_TEMP/btrfs.img" /mnt/btrfs
+          sudo chown "$(id -u):$(id -g)" /mnt/btrfs
+          echo "BERTH_TEST_BTRFS_DIR=/mnt/btrfs" >> "$GITHUB_ENV"
+      - run: go test -tags e2e -timeout 20m -v -run 'Btrfs|Ext4' ./e2e/...

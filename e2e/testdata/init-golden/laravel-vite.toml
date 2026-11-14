@@ -1,0 +1,12 @@
+# berth config for this repository, written by berth init. Commit it so every new
+# worktree reads it.
+# Lines starting with # are suggestions berth can't be sure of; uncomment the ones
+# you want. Reference: https://useberth.dev/docs/reference/configuration/
+
+# Main's gitignored env files, which berth clones into every berth: .env.
+
+[compose]
+
+[env.set]
+# APP_URL holds main's host localhost.
+# APP_URL = "http://{host}:8000"

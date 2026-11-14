@@ -1,0 +1,11 @@
+{
+  "name": "berth",
+  "version": "0.2.0",
+  "description": "Starts each Claude Code session knowing its worktree's berth: its URL, ports and clone state, or that it has none and how to make one.",
+  "author": {
+    "name": "kodnificent"
+  },
+  "homepage": "https://useberth.dev",
+  "repository": "https://github.com/kodnificent/berth",
+  "license": "MIT"
+}

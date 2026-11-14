@@ -1,0 +1,44 @@
+/* Starlight is dark-first: bare :root holds the dark values, [data-theme='light'] the light ones. */
+:root {
+	--sl-font: 'Instrument Sans', 'Helvetica Neue', Arial, sans-serif;
+	--sl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+	--sl-color-accent-low: #3a1e12;
+	--sl-color-accent: #ff7a45;
+	--sl-color-accent-high: #ffd2bd;
+	--sl-color-white: #ffffff;
+	--sl-color-gray-1: #e4edf0;
+	--sl-color-gray-2: #c2d0d6;
+	--sl-color-gray-3: #94a8b2;
+	--sl-color-gray-4: #5a6d78;
+	--sl-color-gray-5: #213645;
+	--sl-color-gray-6: #13232f;
+	--sl-color-black: #0d1a24;
+}
+
+:root[data-theme='light'] {
+	--sl-color-accent-low: #f8dccf;
+	--sl-color-accent: #c2461a;
+	--sl-color-accent-high: #5c2108;
+	--sl-color-white: #13283a;
+	--sl-color-gray-1: #1d3446;
+	--sl-color-gray-2: #34495a;
+	--sl-color-gray-3: #5a6d78;
+	--sl-color-gray-4: #8a9ba4;
+	--sl-color-gray-5: #d3dcde;
+	--sl-color-gray-6: #e7eded;
+	--sl-color-gray-7: #f0f4f4;
+	--sl-color-black: #f8fafa;
+}
+
+.site-title {
+	font-family: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+	font-weight: 800;
+	font-size: 1.6rem;
+	letter-spacing: 0.02em;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+	letter-spacing: -0.01em;
+}

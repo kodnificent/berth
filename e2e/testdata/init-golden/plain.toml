@@ -1,0 +1,26 @@
+# berth config for this repository, written by berth init. Commit it so every new
+# worktree reads it.
+# Lines starting with # are suggestions berth can't be sure of; uncomment the ones
+# you want. Reference: https://useberth.dev/docs/reference/configuration/
+
+# Main's gitignored env files, which berth clones into every berth: .env.
+
+[berth]
+# Main's .env uses this URL; the berth's {url} would be its own.
+# url = "http://{host}:{port.web}"
+
+[compose]
+# Main reads compose.yml, and so does every berth.
+
+[compose.ports]
+"db:3306" = "assign"  # main publishes it on 13306
+"search:17700" = "assign"  # main publishes it on 17700
+"web:80" = "assign"  # main publishes it on 18080
+
+[compose.volumes]
+cache = "clone"
+db-data = "clone"
+
+[env.set]
+# APP_URL holds main's host localhost and port 18080, which main publishes for web:80.
+# APP_URL = "http://{host}:{port.web}"
