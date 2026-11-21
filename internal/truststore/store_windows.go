@@ -4,9 +4,13 @@ import "strings"
 
 const systemName = "your user's Trusted Root Certification Authorities store"
 
-// cryptNotFound is CRYPT_E_NOT_FOUND, which certutil prints in every language when the
-// store holds no certificate matching the hash.
-const cryptNotFound = "0x80092004"
+// certutil prints these codes in every language. CRYPT_E_NOT_FOUND is a store that holds
+// no certificate matching the hash; NTE_NOT_FOUND is a named store that was never created,
+// which holds nothing either.
+const (
+	cryptNotFound = "0x80092004"
+	nteNotFound   = "0x80090011"
+)
 
 func storeName(s Store) string {
 	if s.Throwaway != "" {
@@ -16,7 +20,11 @@ func storeName(s Store) string {
 }
 
 func notFound(err error) bool {
-	return err != nil && strings.Contains(strings.ToLower(err.Error()), cryptNotFound)
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, cryptNotFound) || strings.Contains(msg, nteNotFound)
 }
 
 // certutil finds a certificate by its SHA-1 hash, the only fingerprint it takes.
