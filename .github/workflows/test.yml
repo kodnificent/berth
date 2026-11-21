@@ -14,8 +14,8 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - run: go vet ./...
@@ -39,8 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Install the Docker Compose the e2e tests are written against
@@ -67,8 +67,8 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Keep Defender out of the directories the tests write to
@@ -140,7 +140,7 @@ jobs:
           Expand-Archive $zip $dir
           Get-ChildItem -Recurse $dir -Include sh.exe, bash.exe | Remove-Item
           Add-Content $env:GITHUB_ENV "BERTH_TEST_GIT_WITHOUT_SH=$dir"
-      - uses: Vampire/setup-wsl@v6
+      - uses: Vampire/setup-wsl@v7
         with:
           distribution: Ubuntu-24.04
           wsl-version: 2
@@ -183,8 +183,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
       - name: Mount a btrfs loop device

@@ -565,8 +565,8 @@ berth/
   internal/           packages, laid out by whoever builds them
   e2e/                end-to-end tests against real git and Docker
   plugins/claude/     hooks and skills; plugin files that call the CLI
-  npm/                wrapper that downloads the binary
-  docs/               this design, decisions and plans
+  site/               the website and user docs, with the install scripts
+  docs/               this design and the decisions
 ```
 
 **Platforms**
@@ -585,7 +585,7 @@ Berth runs natively on macOS, Linux and Windows 10 and later. Inside WSL it is t
 
 **Distribution**
 
-`brew install berth`, `scoop install berth`, a `curl | sh` installer, GitHub releases, and `npx berth` through the npm wrapper.
+GitHub releases carry a build for macOS, Linux and Windows, on `amd64` and `arm64`, with checksums. Two install scripts served by the site download the right one, check it and install it without an administrator: `curl -fsSL https://useberth.dev/install | sh` on macOS and Linux, and `irm https://useberth.dev/install.ps1 | iex` on Windows. `go install github.com/kodnificent/berth/cmd/berth@latest` builds it from source.
 
 **Agent integrations**
 
