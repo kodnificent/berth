@@ -27,7 +27,7 @@ The only way to install berth was `go install`, which needs a Go toolchain and r
 ## Evidence
 All six targets build with `CGO_ENABLED=0` (`go build` for each, run locally). The shell script was run on macOS with `curl` and `shasum`, and in a `busybox:1.36.1` container on Linux with `wget` and `sha256sum`, against an archive built by hand to the names above: it installs and reports the stamped version, piped into `sh` as well as run from a file; an archive changed after its checksum was written is refused with nothing installed; a missing release exits `1`. `sh -n` and `dash -n` accept it.
 
-Not yet run: GoReleaser itself against `.goreleaser.yaml`, `install.ps1` on any Windows machine, and the workflow. The workflow's own install job is their first test, on the first tag.
+The first tag, `v0.1.0`, ran the workflow end to end: GoReleaser published the six archives and `checksums.txt`, and the install job passed on Linux, macOS and Windows, each reporting `berth 0.1.0`.
 
 ## Undoing it
 Delete `.goreleaser.yaml`, `.github/workflows/release.yml` and the two scripts in `site/public`. Releases already published stay on GitHub, and `go install` is unaffected.
