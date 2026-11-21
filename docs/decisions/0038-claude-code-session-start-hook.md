@@ -26,4 +26,4 @@ The design's Claude Code plugin injects `berth status` into each session's conte
 `e2e/claude_plugin_test.go` covers each output case, the hook returning in about 0.1 s with a clone running, the busy line past the deadline (a held registry lock and a berth that sleeps), the hook changing no berth, and the wiring. `docs/agents/agents_test.go` covers the skill's body and frontmatter. The hook runs the same under `dash`, `bash` and macOS `/bin/sh`.
 
 ## Undoing it
-Delete `plugins/claude/`, `scripts/sync-claude-skill.sh`, `docs/agents/agents_test.go` and the `go:generate` line in `docs/agents/agents.go`; nothing in the binary depends on them.
+Delete `plugins/claude/`, `.claude-plugin/`, `scripts/sync-claude-skill.sh`, `docs/agents/agents_test.go` and the `go:generate` line in `docs/agents/agents.go`; nothing in the binary depends on them.

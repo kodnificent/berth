@@ -1,0 +1,14 @@
+{
+  "name": "berth",
+  "description": "Berth's plugin for Claude Code.",
+  "owner": {
+    "name": "kodnificent"
+  },
+  "plugins": [
+    {
+      "name": "berth",
+      "source": "./plugins/claude",
+      "description": "Starts each Claude Code session knowing its worktree's berth: its URL, ports and clone state, or that it has none and how to make one."
+    }
+  ]
+}
