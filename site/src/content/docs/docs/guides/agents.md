@@ -120,14 +120,16 @@ The agent then gets the guide that matches the installed berth, and `berth statu
 
 ### The Claude Code plugin
 
-The plugin starts every Claude Code session knowing its worktree's berth, so the agent never has to remember to ask. It lives in the berth repository under `plugins/claude/`. Load it with Claude Code's `--plugin-dir` flag, pointing at a clone of the repository:
+The plugin starts every Claude Code session knowing its worktree's berth, so the agent never has to remember to ask. Install it from inside Claude Code:
 
-```sh
-git clone https://github.com/kodnificent/berth.git ~/src/berth
-claude --plugin-dir ~/src/berth/plugins/claude
+```text
+/plugin marketplace add kodnificent/berth
+/plugin install berth@berth
 ```
 
-It is not in a plugin marketplace yet. `berth` itself has to be on the `PATH` Claude Code runs hooks with.
+The first command tells Claude Code where the plugin lives, the second installs it. `berth` itself has to be on the `PATH` Claude Code runs hooks with.
+
+To try a local copy instead, point Claude Code's `--plugin-dir` flag at `plugins/claude/` in a clone of the repository.
 
 When a session starts, resumes, or is cleared or compacted, its `SessionStart` hook runs `berth status --json` in the session's directory and adds a short summary to the session's context:
 
