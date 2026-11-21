@@ -3,6 +3,7 @@ name: test
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
@@ -10,7 +11,7 @@ concurrency:
 
 jobs:
   unit:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +35,7 @@ jobs:
           test "$(grep -c -- '^--- PASS: TestAsRoot' root.log)" -ge 6
 
   e2e:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -59,7 +60,7 @@ jobs:
           BERTH_E2E_SUDO: "1"
 
   windows:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: windows-2025
     timeout-minutes: 200
     defaults:
@@ -178,7 +179,7 @@ jobs:
           "/mnt/c/Program Files/PowerShell/7/pwsh.exe" -NoProfile -File 'C:\berth-e2e.ps1' -DockerHost "tcp://$(hostname -I | cut -d' ' -f1):2375"
 
   btrfs:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
