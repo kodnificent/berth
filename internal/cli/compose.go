@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/kodnificent/berth/internal/apperr"
 	"github.com/kodnificent/berth/internal/clone"
 	"github.com/kodnificent/berth/internal/compose"
 	"github.com/kodnificent/berth/internal/config"
@@ -100,6 +101,41 @@ func planCompose(w *worktree.Worktree, cfg *config.Config) (*composePlan, error)
 	}
 	plan.own, err = compose.Load(w.Path, opts)
 	return plan, err
+}
+
+const composeUpdate = "update Docker Compose to " + compose.MinVersion + " or later, from a newer Docker Desktop or the compose plugin at https://github.com/docker/compose/releases"
+
+func composeTooOldMessage(version string) string {
+	return fmt.Sprintf("docker compose %s misreads %s: before %s, compose publishes main's ports in a berth as well as the berth's own, so the berth collides with main; berth needs Docker Compose %s or later",
+		version, OverrideFile, compose.MinVersion, compose.MinVersion)
+}
+
+// A docker berth can't run, or a compose whose answer isn't a version, doesn't block add:
+// compose names its own problem when it runs, and doctor reports it as not verified.
+func composeTooOld(version string, err error) error {
+	if err != nil {
+		return nil
+	}
+	if reads, known := compose.ReadsOverride(version); !known || reads {
+		return nil
+	}
+	return apperr.New(apperr.ComposeTooOld, "%s", composeTooOldMessage(version)).WithNext(composeUpdate + ", then run berth add again")
+}
+
+func checkComposeVersion() error { return composeTooOld(docker.ComposeVersion()) }
+
+func composeVersionFindings(version string, err error) []finding {
+	const where = "docker compose version"
+	reads, known := compose.ReadsOverride(version)
+	switch {
+	case err != nil:
+		return []finding{{"compose_version", notVerified, where, fmt.Sprintf("could not run docker compose version, so berth can't tell whether compose reads %s; berth needs Docker Compose %s or later: %v", OverrideFile, compose.MinVersion, err), nil}}
+	case !known:
+		return []finding{{"compose_version", notVerified, where, fmt.Sprintf("docker compose version printed %q, which berth can't read as a version; berth needs Docker Compose %s or later", version, compose.MinVersion), nil}}
+	case !reads:
+		return []finding{{"compose_version", problem, where, composeTooOldMessage(version) + "; " + composeUpdate, nil}}
+	}
+	return nil
 }
 
 // composeFile is the berth's COMPOSE_FILE: its files, then berth's override.

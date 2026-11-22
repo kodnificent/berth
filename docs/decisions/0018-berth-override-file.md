@@ -15,7 +15,7 @@ Berth writes `compose.berth.yml` in the worktree root, applied after every other
 - **Shared volumes:** see 0019.
 - Values are written as JSON strings, which YAML reads as double-quoted scalars, with `$` doubled so compose doesn't interpolate them. A file with nothing to change still holds `services: {}`.
 
-The `!override` and `!reset` tags need a recent Docker Compose (they arrived in the 2.24 line); only 5.5.1 was tested.
+The `!override` and `!reset` tags need Docker Compose 2.24.4 or later: 2.18.1, 2.23.3, 2.24.0 and 2.24.3 add an `!override` list to main's instead of replacing it, and 2.18.1 applies `!reset` to the first service only. `add` and `doctor` check the version (0058).
 
 ## Options considered
 - Remapping the project's own port variables in `.env`: a healthcheck or config reading the variable inside the container would change too, which the design forbids.

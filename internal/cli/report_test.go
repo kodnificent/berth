@@ -29,6 +29,7 @@ func TestReportJSONMatchesDocumentedExitCodes(t *testing.T) {
 		{apperr.New(apperr.MainWorktree, "the main worktree is the source"), "main_worktree", 1},
 		{apperr.New(apperr.NoBerth, "worktree has no berth"), "no_berth", 1},
 		{apperr.New(apperr.ConfigExists, "berth.toml already exists"), "config_exists", 1},
+		{apperr.New(apperr.ComposeTooOld, "docker compose 2.18.1 misreads compose.berth.yml"), "compose_too_old", 1},
 		{errors.New("disk on fire"), "error", 1},
 		{fmt.Errorf("wrapped: %w", apperr.New(apperr.ConfigInvalid, "bad")), "config_invalid", 5},
 	}

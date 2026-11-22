@@ -101,6 +101,7 @@ func runDoctor(ctx *Context, args []string) error {
 	} else {
 		found = append(found, shadowFindings(managedEnv(cfg, rec), secretEnvKey(rec))...)
 		if rec.ComposeFile != "" {
+			found = append(found, composeVersionFindings(docker.ComposeVersion())...)
 			found = append(found, composeFindings(w, rec)...)
 		}
 		found = append(found, portFindings(w, rec)...)
@@ -297,15 +298,17 @@ func mainFindings(w *worktree.Worktree, cfg *config.Config) []finding {
 	if plan.own == nil {
 		return nil
 	}
+	found := composeVersionFindings(docker.ComposeVersion())
 	where := fmt.Sprintf("%s (%s)", w.Path, strings.Join(plan.files, ", "))
 	var flags []string
 	for _, f := range plan.files {
 		flags = append(flags, "-f", f)
 	}
 	if f := composeInvalid(w.Path, where, "the project a berth would use", flags...); f != nil {
-		return f
+		return append(found, f...)
 	}
-	found := append(containerNameFindings(w.Path, plan.files, plan.own, nil), configRefFindings(cfg, plan.own)...)
+	found = append(found, containerNameFindings(w.Path, plan.files, plan.own, nil)...)
+	found = append(found, configRefFindings(cfg, plan.own)...)
 	return append(found, buildContextFindings(w, plan.main)...)
 }
 

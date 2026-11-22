@@ -7,6 +7,10 @@ sidebar:
 
 Berth runs natively on macOS, Linux and Windows 10 and later, and every [guarantee](/docs/reference/guarantees/) holds on each. Inside WSL it is the Linux build, for repositories in WSL's own filesystem.
 
+## Docker Compose
+
+A repository with compose files needs Docker Compose 2.24.4 or later; `docker compose version` shows yours. The `compose.berth.yml` berth writes in each worktree replaces main's published ports and container names, and older compose reads it without an error but adds main's ports to the worktree's, so the worktree collides with main. Compose 2.18 also names every service but the first `"null"`. `berth add` refuses an older compose before it changes anything, with error code `compose_too_old`, and `berth doctor` reports it. Docker Desktop 4.27.2 and later ship a compose new enough (4.27.0 and 4.27.1 ship 2.24.3); otherwise, put the `docker-compose` binary from [docker/compose's releases](https://github.com/docker/compose/releases) in Docker's `cli-plugins` folder (`~/.docker/cli-plugins` on macOS and Linux).
+
 ## Where berth keeps its state
 
 | Platform | Registry and clone state | User config |
