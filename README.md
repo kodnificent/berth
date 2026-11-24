@@ -90,6 +90,8 @@ go test -tags e2e ./e2e/...
 
 runs the end-to-end tests against real git and Docker. They need Docker running and clean up everything they create.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request.
+
 ## License
 
 [MIT](LICENSE)
