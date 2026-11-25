@@ -155,6 +155,12 @@ func addBerth(ctx *Context, w *worktree.Worktree, cfg *config.Config) (registry.
 	if err != nil {
 		return registry.Record{}, false, err
 	}
+	// Before anything is made: an override compose misreads would collide with main.
+	if plan.own != nil {
+		if err := checkComposeVersion(); err != nil {
+			return registry.Record{}, false, err
+		}
+	}
 	db, err := prepareDatabases(w, cfg)
 	if err != nil {
 		return registry.Record{}, false, err

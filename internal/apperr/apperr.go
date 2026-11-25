@@ -24,6 +24,9 @@ const (
 	ConfigExists Code = "config_exists"
 	// Problems means berth doctor found something wrong.
 	Problems Code = "problems_found"
+	// ComposeTooOld means the docker compose on this machine would misread the berth's
+	// override file, so berth add refused to write one.
+	ComposeTooOld Code = "compose_too_old"
 )
 
 func (c Code) Exit() int {

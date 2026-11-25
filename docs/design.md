@@ -510,6 +510,7 @@ Run in the main worktree, `doctor` checks what a berth would be made from: the c
 | Untracked files | Small gitignored files at main's top level that the berth lacks and `[files] clone` doesn't list; a warning | `main has phpunit.xml, which this berth lacks` |
 | Config | Keys mapped under `[env]` that are missing or unchanged | `APP_URL is mapped but not set` |
 | Config | `[compose]` entries naming a service or volume the project lacks | `[compose.ports] wbe:80 names no service` |
+| Compose | A docker compose older than 2.24.4, which misreads the override's `!override` and `!reset` (0058); `add` refuses it too | `docker compose 2.18.1 misreads compose.berth.yml` |
 | Compose | Hardcoded `container_name`, absolute bind mounts, ports outside the override | `container_name: mysql collides across berths` |
 | Compose | Services that `depends_on` an excluded service | `app depends on mailpit, which is excluded` |
 | Compose | A build whose context is the whole repository with no `.dockerignore`; a warning, since Docker reads every file on each build and every berth builds its own image | `web builds with the whole repository as its context and no .dockerignore` |
@@ -577,6 +578,7 @@ Berth runs natively on macOS, Linux and Windows 10 and later. Inside WSL it is t
 - **Copy-on-write on Windows** is block cloning on ReFS, the filesystem of a Dev Drive. On NTFS, cloned files are full copies, and `add` and `doctor` say so, naming Dev Drive.
 - **Symlinks on Windows** need Developer Mode or an administrator. When berth can't make a symlink that a cloned path holds, that path's clone fails, naming Developer Mode, the other paths and the rest of the berth's files still finish, and `add` ends with one error naming every path it refused. Junctions need no privilege and are cloned as junctions, pointing into the berth. Removing a berth deletes a junction itself, never what it leads to.
 - **The managed block** joins `COMPOSE_FILE` with `;` on Windows, as compose expects there.
+- **Docker Compose 2.24.4 or later** reads the override as written. An older compose reads it without an error but adds its `!override` lists to main's, so a berth would publish main's ports and keep an excluded service's own profiles. When a worktree has compose files, `add` refuses an older compose before it changes anything, exiting `1` with `compose_too_old`, and `doctor` reports it. A version berth can't learn, because `docker compose version` fails or prints none, blocks nothing and is reported as not verified.
 
 **State on disk**
 

@@ -426,6 +426,7 @@ With `--json`, a command that fails prints its error as one object on stdout, no
 | `no_berth` | `1` | The worktree has no berth |
 | `config_exists` | `1` | `berth init` found the config it would write already there |
 | `problems_found` | `1` | `berth doctor` found a problem |
+| `compose_too_old` | `1` | `berth add` found a docker compose older than 2.24.4, which would misread the worktree's `compose.berth.yml` |
 | `no_free_ports` | `2` | The port pool has no free port |
 | `worktree_not_found` | `3` | The path doesn't exist or isn't inside a git worktree |
 | `state_clone_failed` | `4` | A copy failed |

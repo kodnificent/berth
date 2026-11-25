@@ -13,6 +13,7 @@ You are in a git worktree. Berth gives a worktree its own ports, names, files an
 
 - Run `berth add` only when you are about to start the app or run its tests. Reading code, editing it and running linters need no berth, and every berth holds copies of the data and a share of the port pool.
 - `berth add` returns in seconds and slow clones carry on in the background. Running it again keeps the berth the worktree already has.
+- If `berth add` exits `1` with error code `compose_too_old`, this machine's docker compose is older than 2.24.4 and would run the worktree on main's ports. Berth made nothing. Don't start the app with compose here; tell the user what `error.next` says.
 - `berth add` ends with a summary: the berth's name, its URL, the ports berth assigned, each volume, database and SQLite file with its state, and the same `next` hints `status` gives. Read the URL and ports from it, or from `berth status --json`.
 - `berth add` prints how it copied each cloned path, such as `vendor` or `node_modules`: `cow` shares main's blocks and takes a moment, `copy` is a full copy.
 - While a volume or database is still cloning, run `berth status --wait` before you start the app or its tests. It returns once every clone and `post-add` have finished, and exits `4` if a clone failed or `1` if `post-add` did.

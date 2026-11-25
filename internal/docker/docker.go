@@ -55,6 +55,15 @@ func PublishedPorts(project string) (map[string]int, error) {
 	return ports, nil
 }
 
+// It needs the CLI and its compose plugin, not the daemon, so it answers while Docker is down.
+func ComposeVersion() (string, error) {
+	out, err := run("compose", "version", "--short")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
 // VolumeExists reports whether Docker has a volume named name.
 func VolumeExists(name string) (bool, error) {
 	_, err := run("volume", "inspect", "--format", "{{.Name}}", name)

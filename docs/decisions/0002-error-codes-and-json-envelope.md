@@ -20,6 +20,7 @@ Every failure is an `apperr.Error` with a stable string code. Each code maps to 
 | `no_berth` | 1 | A command that needs a berth is pointed at a linked worktree that has none |
 | `config_exists` | 1 | `berth init` found the config it would write already there |
 | `problems_found` | 1 | `berth doctor` found something wrong (0028) |
+| `compose_too_old` | 1 | `berth add` found a docker compose too old to read the berth's override file (0058) |
 | `no_free_ports` | 2 | |
 | `worktree_not_found` | 3 | The path does not exist, or is not inside a git worktree (including a path inside `.git`) |
 | `state_clone_failed` | 4 | |
